@@ -1,6 +1,6 @@
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = BASE_DIR / "data"
 
 URL = "https://huggingface.co/api/datasets/HuggingFaceGECLM/REDDIT_comments/parquet/default/"

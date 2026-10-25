@@ -5,7 +5,7 @@ from pathlib import Path
 import aiohttp
 import aiofiles
 
-from .config import SUBREDDITS_IT, DATA_PATH, URL
+from src.config import SUBREDDITS_IT, DATA_PATH, URL
 
 
 DATA_PATH = Path(DATA_PATH)

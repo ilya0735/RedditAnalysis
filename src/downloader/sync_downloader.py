@@ -1,6 +1,6 @@
 import time
 import requests
-from .config import SUBREDDITS_IT, DATA_PATH, URL
+from src.config import SUBREDDITS_IT, DATA_PATH, URL
 
 
 DATA_PATH.mkdir(parents=True, exist_ok=True)
