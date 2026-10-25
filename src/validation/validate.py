@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 from pydantic import ValidationError
 
-from validate_schema import RedditCommentSchema
+from validation_schema import RedditCommentSchema
 from src.config import DATA_PATH
 
 
