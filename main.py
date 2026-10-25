@@ -1,4 +1,6 @@
-from src.downloader.sync_downloader import download
+from src.downloader import Downloader
 
 if __name__ == "__main__":
-    download()
+    downloader = Downloader()
+    downloader.run(mode="async")
+
