@@ -1,6 +1,7 @@
+import math
 from typing import Optional, Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class RedditCommentSchema(BaseModel):
@@ -28,6 +29,15 @@ class RedditCommentSchema(BaseModel):
     subreddit_type: Optional[str] = None
     total_awards_received: Optional[str] = None
 
+    @model_validator(mode='before')
+    @classmethod
+    def clean_pandas_nan(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            return {
+                k: (None if (isinstance(v, float) and math.isnan(v)) else v)
+                for k, v in values.items()
+            }
+        return values
 
     @field_validator('score', mode='before')
     @classmethod
@@ -39,8 +49,6 @@ class RedditCommentSchema(BaseModel):
         except (ValueError, TypeError):
             raise ValueError(f"Невозможно конвертировать score '{value}' в целое число")
 
-        if score_int < 0:
-            raise ValueError("Score не может быть отрицательным")
         return score_int
 
 

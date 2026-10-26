@@ -1,7 +1,9 @@
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = BASE_DIR / "data"
+RAW_DATA_PATH = BASE_DIR / "data" / "raw_data"
+CORRUPTED_DATA_PATH = BASE_DIR / "data" / "corrupted_data"
+CLEANED_DATA_PATH = BASE_DIR / "data" / "cleaned_data"
 
 URL = "https://huggingface.co/api/datasets/HuggingFaceGECLM/REDDIT_comments/parquet/default/"
 
