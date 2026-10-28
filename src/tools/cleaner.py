@@ -1,9 +1,9 @@
 from pathlib import Path
-from src.config import DATA_PATH
+from src.config import RAW_DATA_PATH
 
 
 class DataCleaner:
-    def __init__(self, data_path: Path = DATA_PATH):
+    def __init__(self, data_path: Path = RAW_DATA_PATH):
         self.data_path = Path(data_path)
 
     def clean_all(self, only_parquet: bool = True) -> None:

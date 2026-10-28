@@ -1,9 +1,9 @@
 import time
 import requests
-from src.config import SUBREDDITS_IT, DATA_PATH, URL
+from src.config import SUBREDDITS_IT, RAW_DATA_PATH, URL
 
 
-DATA_PATH.mkdir(parents=True, exist_ok=True)
+RAW_DATA_PATH.mkdir(parents=True, exist_ok=True)
 
 
 class SyncDownloader:

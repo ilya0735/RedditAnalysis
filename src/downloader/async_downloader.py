@@ -5,10 +5,10 @@ from pathlib import Path
 import aiohttp
 import aiofiles
 
-from src.config import SUBREDDITS_IT, DATA_PATH, URL
+from src.config import SUBREDDITS_IT, RAW_DATA_PATH, URL
 
 
-DATA_PATH = Path(DATA_PATH)
+DATA_PATH = Path(RAW_DATA_PATH)
 DATA_PATH.mkdir(parents=True, exist_ok=True)
 
 
