@@ -1,22 +1,29 @@
+from pathlib import Path
 import time
 import requests
-from src.config import SUBREDDITS_IT, RAW_DATA_PATH, URL
-
-
-RAW_DATA_PATH.mkdir(parents=True, exist_ok=True)
+from src.config import URL
 
 
 class SyncDownloader:
-    def download_file(self, url, file_path, retries=5):
+
+    def __init__(self, raw_data_path: str | Path, subreddits: list) -> None:
+        self.raw_data_path = Path(raw_data_path)
+        self.subreddits = subreddits
+
+    def download_file(self, url: str, file_path: Path, retries: int = 5):
         for attempt in range(retries):
             try:
-                downloaded = file_path.stat().st_size if file_path.exists() else 0
+                downloaded = (
+                    file_path.stat().st_size if file_path.exists() else 0
+                )
 
                 headers = {}
                 if downloaded:
                     headers["Range"] = f"bytes={downloaded}-"
 
-                with requests.get(url, headers=headers, stream=True, timeout=(15, 60)) as response:
+                with requests.get(
+                    url, headers=headers, stream=True, timeout=(15, 60)
+                ) as response:
                     if response.status_code == 416:
                         print(f"Файл уже скачан: {file_path}")
                         return
@@ -26,10 +33,16 @@ class SyncDownloader:
                     if downloaded and response.status_code != 206:
                         downloaded = 0
 
-                    mode = "ab" if downloaded and response.status_code == 206 else "wb"
+                    mode = (
+                        "ab"
+                        if downloaded and response.status_code == 206
+                        else "wb"
+                    )
 
                     with open(file_path, mode) as file:
-                        for chunk in response.iter_content(chunk_size=1024 * 1024):
+                        for chunk in response.iter_content(
+                            chunk_size=1024 * 1024
+                        ):
                             if chunk:
                                 file.write(chunk)
 
@@ -42,20 +55,20 @@ class SyncDownloader:
                     raise
                 time.sleep(attempt + 1)
 
-    def download_subreddit(self, subreddit):
+    def download_subreddit(self, subreddit: str):
         response = requests.get(URL + subreddit, timeout=60)
         response.raise_for_status()
         data = response.json()
 
         if isinstance(data, list) and data and isinstance(data[0], str):
             file_url = data[0]
-            file_path = DATA_PATH / f"{subreddit}.parquet"
+            file_path = self.raw_data_path / f"{subreddit}.parquet"
             self.download_file(file_url, file_path)
         else:
             print(f"Ошибка: ожидался list, пришёл {type(data).__name__}")
 
     def download(self):
-        for subreddit in SUBREDDITS_IT:
+        for subreddit in subreddits:
             try:
                 self.download_subreddit(subreddit)
             except (requests.RequestException, OSError, ValueError) as error:

@@ -1,38 +1,13 @@
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-from src.config import CORRUPTED_DATA_PATH, CLEANED_DATA_PATH, RAW_DATA_PATH
-from validation import Validator
-
-
-CORRUPTED_DATA_PATH.mkdir(parents=True, exist_ok=True)
-CLEANED_DATA_PATH.mkdir(parents=True, exist_ok=True)
-
-
-raw_files = list(Path(RAW_DATA_PATH).glob("*.parquet"))
-row_file_path = raw_files[2]
-corrupted_file_path = CORRUPTED_DATA_PATH / 'programming.jsonl'
-
-if not row_file_path.exists():
-    print(f"Файл {row_file_path.name} не найден.")
-    raise FileNotFoundError
-
-
-validator = Validator(row_file_path, corrupted_file_path)
-pure_dataframe = validator.run()
-
 
 class Transformer:
-    def __init__(self, row_file_path, corrupted_file_path):
-        self.row_file_path = row_file_path
-        self.corrupted_file_path = corrupted_file_path
-        self.validator = Validator(row_file_path, corrupted_file_path)
-        self.df = validator.run()
+    def run(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df.copy()
 
-    def _transform(self, df):
-        self.df = self.df()
+        df = df.copy()
 
         df["created_utc"] = pd.to_datetime(
             pd.to_numeric(df["created_utc"], errors="coerce"), unit="s"
@@ -65,12 +40,6 @@ class Transformer:
         )
 
         df["thread_comment_count"] = df.groupby("link_id")["id"].transform("count")
-        df["thread_avg_score"] = (
-            df.groupby("link_id")["score"].transform("mean").round(2)
-        )
+        df["thread_avg_score"] = (df.groupby("link_id")["score"].transform("mean").round(2))
 
         return df
-
-    def get_df(self):
-        self.df = self._transform(self.df)
-        return self.df

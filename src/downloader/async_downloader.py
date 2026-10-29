@@ -2,18 +2,21 @@ import asyncio
 import re
 from pathlib import Path
 
-import aiohttp
 import aiofiles
+import aiohttp
 
-from src.config import SUBREDDITS_IT, RAW_DATA_PATH, URL
-
-
-DATA_PATH = Path(RAW_DATA_PATH)
-DATA_PATH.mkdir(parents=True, exist_ok=True)
+from src.config import URL
 
 
 class AsyncDownloader:
-    async def download_file(self, session, url, file_path, retries=5):
+    def __init__(self, raw_data_path: str | Path, subreddits: list, max_concurrent: int = 4):
+        self.raw_data_path = Path(raw_data_path)
+        self.subreddits = subreddits
+        self.max_concurrent = max_concurrent
+
+    async def download_file(
+        self, session: aiohttp.ClientSession, url: str, file_path: Path, retries: int = 5
+    ):
         for attempt in range(retries):
             try:
                 downloaded = file_path.stat().st_size if file_path.exists() else 0
@@ -22,9 +25,8 @@ class AsyncDownloader:
                 if downloaded:
                     headers["Range"] = f"bytes={downloaded}-"
 
-                async with session.get(
-                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=None, sock_connect=15, sock_read=60)
-                ) as response:
+                timeout = aiohttp.ClientTimeout(total=None, sock_connect=15, sock_read=60)
+                async with session.get(url, headers=headers, timeout=timeout) as response:
                     if response.status == 416:
                         print(f"Уже скачан: {file_path} ({downloaded:,} байт)")
                         return
@@ -39,18 +41,14 @@ class AsyncDownloader:
                             raise ValueError("Некорректный Content-Range")
 
                         total_size = (
-                            int(match.group(3))
-                            if match.group(3) != "*"
-                            else None
+                            int(match.group(3)) if match.group(3) != "*" else None
                         )
                         mode = "ab"
-
                     else:
                         downloaded = 0
+                        content_length = response.headers.get("Content-Length", "")
                         total_size = (
-                            int(response.headers["Content-Length"])
-                            if response.headers.get("Content-Length", "").isdigit()
-                            else None
+                            int(content_length) if content_length.isdigit() else None
                         )
                         mode = "wb"
 
@@ -76,7 +74,9 @@ class AsyncDownloader:
 
                 await asyncio.sleep(attempt + 1)
 
-    async def download_subreddit(self, session, subreddit, semaphore):
+    async def download_subreddit(
+        self, session: aiohttp.ClientSession, subreddit: str, semaphore: asyncio.Semaphore
+    ):
         async with semaphore:
             async with session.get(f"{URL}{subreddit}") as response:
                 response.raise_for_status()
@@ -85,20 +85,23 @@ class AsyncDownloader:
             if not isinstance(data, list) or not data or not isinstance(data[0], str):
                 raise ValueError(f"Некорректный ответ API для {subreddit}")
 
-            file_path = DATA_PATH / f"{subreddit}.parquet"
+            file_path = self.raw_data_path / f"{subreddit}.parquet"
             await self.download_file(session, data[0], file_path)
 
     async def download_all(self):
-        semaphore = asyncio.Semaphore(4)
+        semaphore = asyncio.Semaphore(self.max_concurrent)
 
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
             tasks = [
                 self.download_subreddit(session, subreddit, semaphore)
-                for subreddit in SUBREDDITS_IT
+                for subreddit in self.subreddits
             ]
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for subreddit, result in zip(SUBREDDITS_IT, results):
+            for subreddit, result in zip(self.subreddits, results):
                 if isinstance(result, BaseException):
                     print(f"Ошибка для {subreddit}: {result}")
+
+    def download(self):
+        asyncio.run(self.download_all())
