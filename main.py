@@ -14,8 +14,8 @@ def download_files():
     downloader.run()
 
 def transform_data():
-    validator = Validator(raw_file_path, corrupted_file_path)
-    valid_df = validator.run(mode=None)
+    validator = Validator()
+    valid_df = validator.run(raw_file_path, corrupted_file_path, mode=None)
 
     transformer = Transformer()
     clean_df = transformer.run(valid_df)
