@@ -7,6 +7,8 @@ CLEANED_DATA_PATH = BASE_DIR / "data" / "cleaned_data"
 
 URL = "https://huggingface.co/api/datasets/HuggingFaceGECLM/REDDIT_comments/parquet/default/"
 
+DB_URL = "postgresql+psycopg2://postgres:0707@localhost:5432/reddit_db"
+
 SUBREDDITS_LIST_FULL = [
     "tifu", "explainlikeimfive", "WritingPrompts", "changemyview",
     "LifeProTips", "todayilearned", "science", "askscience",
