@@ -1,72 +1,66 @@
-import io
+from io import StringIO
 from typing import Literal
 
 import pandas as pd
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+
+
+COPY_ESCAPES = str.maketrans({
+    "\\": r"\\",
+    "\t": r"\t",
+    "\r": r"\r",
+    "\n": r"\n",
+})
+
+
+def copy_value(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return r"\N"
+    return str(value).translate(COPY_ESCAPES)
 
 
 def psql_insert_copy(table, conn, keys, data_iter):
-    dbapi_conn = conn.connection
-    with dbapi_conn.cursor() as cur:
-        s_buf = io.StringIO()
+    preparer = conn.dialect.identifier_preparer
+    table_name = preparer.format_table(table.table)
+    columns = ", ".join(map(preparer.quote_identifier, keys))
+    sql = f"COPY {table_name} ({columns}) FROM STDIN"
+
+    with StringIO() as buffer:
         for row in data_iter:
-            clean_row = []
-            for val in row:
-                if val is None or (isinstance(val, float) and pd.isna(val)):
-                    clean_row.append(r"\N")
-                else:
-                    s_val = str(val)
-                    s_val = (
-                        s_val.replace("\\", "\\\\")
-                        .replace("\t", "\\t")
-                        .replace("\r", "\\r")
-                        .replace("\n", "\\n")
-                    )
-                    clean_row.append(s_val)
+            buffer.write("\t".join(map(copy_value, row)) + "\n")
 
-            s_buf.write("\t".join(clean_row) + "\n")
-
-        s_buf.seek(0)
-
-        columns = ", ".join(f'"{k}"' for k in keys)
-        table_name = (
-            f'"{table.schema}"."{table.name}"'
-            if table.schema
-            else f'"{table.name}"'
-        )
-        sql = f"COPY {table_name} ({columns}) FROM STDIN WITH (FORMAT text, NULL '\\N')"
-        cur.copy_expert(sql=sql, file=s_buf)
+        buffer.seek(0)
+        with conn.connection.cursor() as cursor:
+            cursor.copy_expert(sql, buffer)
 
 
 class Loader:
     def __init__(self, db_url: str):
-        self.engine: Engine = create_engine(db_url, pool_pre_ping=True)
+        self.engine = create_engine(db_url, pool_pre_ping=True)
 
     def run(
         self,
         df: pd.DataFrame,
         table_name: str,
         if_exists: Literal["append", "replace", "fail"] = "replace",
-        chunksize: int = 50000,
+        chunksize: int = 50_000,
     ) -> int:
         if df.empty:
             print(f"[{table_name}] Датафрейм пуст, пропуск загрузки.")
             return 0
 
-        upload_df = df.copy()
-        for col in upload_df.select_dtypes(include=["category"]).columns:
-            upload_df[col] = upload_df[col].astype(str)
+        categories = df.select_dtypes(include="category").columns
+        if len(categories):
+            df = df.astype(dict.fromkeys(categories, str))
 
-        upload_df.to_sql(
-            name=table_name,
-            con=self.engine,
+        df.to_sql(
+            table_name,
+            self.engine,
             if_exists=if_exists,
             index=False,
             chunksize=chunksize,
             method=psql_insert_copy,
         )
 
-        rows_loaded = len(upload_df)
-        print(f"[{table_name}] Успешно загружено {rows_loaded} строк.")
-        return rows_loaded
+        print(f"[{table_name}] Успешно загружено {len(df)} строк.")
+        return len(df)
